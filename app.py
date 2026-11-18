@@ -252,6 +252,7 @@ FORM_HTML = """<!doctype html>
 <div class="row">
   <input type="file" id="f" multiple hidden>
   <button type="button" id="pick">📎 Прикрепить файлы</button>
+  <span class="kbd">Ctrl+V — скриншот</span>
   <span class="dim" id="flim">до {max_files} файлов, {max_file_mb} МБ каждый</span>
 </div>
 <ul class="flist" id="flist"></ul>
@@ -290,6 +291,28 @@ function addFiles(list){
   if(picked.length>MAXF){picked=picked.slice(0,MAXF);fail('не больше '+MAXF+' файлов');}
   draw();
 }
+function clipboardName(file,i,total){
+  const generic=!file.name||/^image\.(png|jpe?g|gif|webp)$/i.test(file.name);
+  if(!generic)return file;
+  const d=new Date(),p=n=>String(n).padStart(2,'0');
+  const stamp=''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());
+  const ext=(file.type.split('/')[1]||'png').split('+')[0].replace('jpeg','jpg');
+  const name='screenshot-'+stamp+(total>1?'-'+i:'')+'.'+ext;
+  return new File([file],name,{type:file.type||'image/png'});
+}
+document.addEventListener('paste',e=>{
+  const items=e.clipboardData&&e.clipboardData.items;
+  if(!items)return;
+  const pasted=[];
+  for(const it of items){
+    if(it.kind!=='file')continue;
+    const file=it.getAsFile();
+    if(file)pasted.push(file);
+  }
+  if(!pasted.length)return;  // ordinary text paste goes to the textarea
+  e.preventDefault();
+  addFiles(pasted.map((file,i)=>clipboardName(file,i,pasted.length)));
+});
 pick.onclick=()=>f.click();
 f.onchange=()=>{addFiles(f.files);f.value='';};
 flist.onclick=e=>{const b=e.target.closest('button[data-i]');if(!b)return;picked.splice(+b.dataset.i,1);draw();};
